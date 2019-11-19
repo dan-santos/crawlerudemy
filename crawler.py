@@ -3,7 +3,36 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin #para colocar o https no início de todo 'href' das tags 'a' da página
 import re
 import nltk
-
+import pymysql
+#Aqui, e necessario conectar a aplicacao ao banco de dados. Para isso, devemos abrir o anaconda prompt
+#e digitar o seguinte comando: conda install pymysql. Eh uma biblioteca do python responsavel pela conexao
+def paginaIndexada(url):
+    retorno = -1 #-1 = nao existe a pagina
+    conexao = pymysql.connect(host='localhost', user='root', passwd='fsociety', db='indice')
+    #maquina, user, senha, banco
+    cursorUrl = conexao.cursor()
+    #cursor = objeto para realizar consultas sql
+    cursorUrl.execute('select idurl from urls where url = %s', url)
+    if cursorUrl.rowcount > 0: #se retornou mais de 0 linhas, eh pq existe registro
+        #print('url cadastrada')
+        idUrl = cursorUrl.fetchone()[0] #pegando id do primeiro valor
+        cursorPalavra = conexao.cursor()
+        cursorPalavra.execute('select idurl from palavra_localizacao where idurl = %s', idUrl)
+        if cursorPalavra.rowcount > 0:
+            #print('url com palavras')
+            retorno = -2 #-2 = existe pag com palavras cadastradas
+        else:
+            #print('url sem palavras')
+            retorno = idUrl #existe a pag sem palavras
+        cursorPalavra.close()
+    #else:
+        #print('url nao cadastrada')
+    cursorUrl.close()
+    conexao.close()
+    return retorno
+    
+paginaIndexada('teste')
+    
 #Separa palavras, remove stopwords e considera apenas os radicais da palavra
 def separaPalavras(texto):
     stopW = nltk.corpus.stopwords.words('portuguese')
