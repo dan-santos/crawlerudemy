@@ -4,6 +4,58 @@ from urllib.parse import urljoin #para colocar o https no início de todo 'href'
 import re
 import nltk
 import pymysql
+
+def inserePalavraLocalizacao(idUrl, idPalavra, localizacao):
+    conexao = pymysql.connect(host='localhost', user='root', passwd='fsociety', db='indice', autocommit = True)
+    cursorUrl = conexao.cursor()
+    cursorUrl.execute('insert into palavra_localizacao (idurl, idpalavra, localizacao) values (%s, %s, %s)', (idUrl, idPalavra, localizacao))
+    idPalLoc = cursorUrl.lastrowid
+    cursorUrl.close()
+    conexao.close()
+    return idPalLoc
+
+#inserePalavraLocalizacao(1, 2, 50)
+
+def inserePalavra(palavra):
+    conexao = pymysql.connect(host='localhost', user='root', passwd='fsociety', db='indice', autocommit = True, use_unicode = True, charset = 'utf8mb4')
+    cursorUrl = conexao.cursor()
+    cursorUrl.execute('insert into palavras (palavra) values (%s)', palavra)
+    idPalavra = cursorUrl.lastrowid
+    cursorUrl.close()
+    conexao.close()
+    return idPalavra
+
+#inserePalavra('teste2')
+
+#verificando se a palavra existe no bd
+def palavraIndexada(palavra):
+    retorno = -1
+    conexao = pymysql.connect(host='localhost', user='root', passwd='fsociety', db='indice', use_unicode = True, charset = 'utf8mb4')
+    cursorUrl = conexao.cursor()
+    cursorUrl.execute('select idpalavra from palavras where palavra = %s', palavra)
+    if cursorUrl.rowcount > 0: #se retornou algum resultado
+        print('palavra ja cadastrada')
+        retorno = cursorUrl.fetchone()[0]
+    cursorUrl.close()
+    conexao.close()
+    return retorno
+    
+#palavraIndexada('linguagem')
+#palavraIndexada('linguagens')
+    
+#inserindo url no bd
+def inserePagina(url):
+    conexao = pymysql.connect(host='localhost', user='root', passwd='fsociety', db='indice', autocommit = True)
+    #autocommit = fazer com que de fato o que foi inserido pelo algoritmo seja inserido no banco
+    cursorUrl = conexao.cursor()
+    cursorUrl.execute('insert into urls (url) values (%s)', url)
+    idPag = cursorUrl.lastrowid #Pega id do ultimo item da tabela
+    cursorUrl.close()
+    conexao.close()    
+    return idPag
+
+#inserePagina('teste2')
+
 #Aqui, e necessario conectar a aplicacao ao banco de dados. Para isso, devemos abrir o anaconda prompt
 #e digitar o seguinte comando: conda install pymysql. Eh uma biblioteca do python responsavel pela conexao
 def paginaIndexada(url):
@@ -55,6 +107,29 @@ def getTexto(sopa):
     
     return ' '.join(sopa.stripped_strings)
 
+#Cadastrar pags, palavras e estabelecer o vinculo entre a url e as palavras
+def indexador(url, sopa):
+    #verificando se a url ja esta indexada
+    indexada = paginaIndexada(url)
+    if indexada == -2:
+        print('url ja indexada')
+        return
+    elif indexada == -1:
+        idNovaPag = inserePagina(url)
+    elif indexada > 0:
+        idNovaPag = indexada
+    
+    print('Indexando ' + url)
+    texto = getTexto(sopa) #pegando so o texto sem tags e codigo
+    palavras = separaPalavras(texto) #retirando stopwotds, nao-radicais e separando texto em palavras
+    for i in range(len(palavras)):
+        palavra = palavras[i]
+        idPalv = palavraIndexada(palavra)
+        if idPalv == -1:
+            idPalv = inserePalavra(palavra)
+        inserePalavraLocalizacao(idNovaPag, idPalv, i)
+        
+        
 #TRATAMENTO DE LINKS
 def crawler(pags, profundidade):
     #Profundidade = 1: Só executa a página passada como parâmetro
@@ -73,6 +148,7 @@ def crawler(pags, profundidade):
                 continue
                 
             sopa = BeautifulSoup(dados_pag.data, 'lxml')
+            indexador(pag, sopa)
             links = sopa.find_all('a')
             #contador = 0 #links no total
             #contadorLink = 0 #links com o href
