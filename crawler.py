@@ -34,7 +34,7 @@ def palavraIndexada(palavra):
     cursorUrl = conexao.cursor()
     cursorUrl.execute('select idpalavra from palavras where palavra = %s', palavra)
     if cursorUrl.rowcount > 0: #se retornou algum resultado
-        print('palavra ja cadastrada')
+        #print('palavra ja cadastrada')
         retorno = cursorUrl.fetchone()[0]
     cursorUrl.close()
     conexao.close()
